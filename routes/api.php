@@ -61,7 +61,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/owner/upgrade', [OwnerRegisterController::class, 'upgrade']);
 
-    // Admin
+    // Admin hello
     Route::prefix('admin')->middleware('role:admin')->group(function () {
         Route::get('/dashboard', [AdminDashboard::class, 'index']);
         Route::apiResource('grounds', AdminGround::class)->only(['index', 'update']);
