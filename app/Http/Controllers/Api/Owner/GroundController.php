@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Owner;
 
 use App\Http\Controllers\Controller;
 use App\Models\Turf;
+use App\Models\TurfOverride;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
@@ -72,6 +73,7 @@ class GroundController extends Controller
             'slots.*.end_time' => 'required|date_format:H:i|after:slots.*.start_time',
             'slots.*.price' => 'required|numeric',
             'slots.*.sport_type' => 'nullable|string',
+            'slots.*.day_of_week' => 'nullable|integer|min:0|max:6',
         ]);
 
         $imagePaths = [];
@@ -85,7 +87,7 @@ class GroundController extends Controller
 
             foreach ($files as $image) {
                 $path = $image->store('turf_images', 'public');
-                $imagePaths[] = asset('storage/' . $path);
+                $imagePaths[] = $path;
             }
         }
 
@@ -107,6 +109,7 @@ class GroundController extends Controller
                     'end_time' => $slotData['end_time'],
                     'price' => $slotData['price'],
                     'sport_type' => $slotData['sport_type'] ?? null,
+                    'day_of_week' => $slotData['day_of_week'] ?? null,
                 ]);
             }
         }
@@ -181,6 +184,7 @@ class GroundController extends Controller
             'slots.*.end_time' => 'required|date_format:H:i|after:slots.*.start_time',
             'slots.*.price' => 'required|numeric',
             'slots.*.sport_type' => 'nullable|string',
+            'slots.*.day_of_week' => 'nullable|integer|min:0|max:6',
         ]);
 
         $data = $request->except(['images', 'image', 'clear_images', 'slots']);
@@ -194,7 +198,7 @@ class GroundController extends Controller
 
             foreach ($files as $image) {
                 $path = $image->store('turf_images', 'public');
-                $imagePaths[] = asset('storage/' . $path);
+                $imagePaths[] = $path;
             }
             $data['images'] = $imagePaths;
         } elseif ($request->clear_images) {
@@ -212,6 +216,7 @@ class GroundController extends Controller
                     'end_time' => $slotData['end_time'],
                     'price' => $slotData['price'],
                     'sport_type' => $slotData['sport_type'] ?? null,
+                    'day_of_week' => $slotData['day_of_week'] ?? null,
                 ]);
             }
         }
@@ -265,5 +270,63 @@ class GroundController extends Controller
         $turf->delete();
 
         return response()->json(['message' => 'Turf deleted successfully']);
+    }
+
+    /**
+     * Get overrides for a specific turf.
+     */
+    public function getOverrides(Request $request, $id)
+    {
+        $turf = Turf::where('owner_id', $request->user()->id)->findOrFail($id);
+        $overrides = $turf->overrides()->orderBy('date')->get();
+        
+        return response()->json($overrides);
+    }
+
+    /**
+     * set an override (block or re-price) for a specific date and time.
+     */
+    public function setOverride(Request $request, $id)
+    {
+        $turf = Turf::where('owner_id', $request->user()->id)->findOrFail($id);
+
+        $request->validate([
+            'date' => 'required|date|after_or_equal:today',
+            'start_time' => 'required|date_format:H:i',
+            'end_time' => 'required|date_format:H:i|after:start_time',
+            'price' => 'nullable|numeric',
+            'is_blocked' => 'nullable|boolean',
+            'sport_type' => 'nullable|string',
+        ]);
+
+        $override = $turf->overrides()->updateOrCreate(
+            [
+                'date' => $request->date,
+                'start_time' => $request->start_time,
+                'end_time' => $request->end_time,
+            ],
+            [
+                'price' => $request->price,
+                'is_blocked' => $request->is_blocked ?? false,
+                'sport_type' => $request->sport_type,
+            ]
+        );
+
+        return response()->json([
+            'message' => 'Override saved successfully',
+            'override' => $override
+        ]);
+    }
+
+    /**
+     * Remove a specific override.
+     */
+    public function removeOverride(Request $request, $id, $overrideId)
+    {
+        $turf = Turf::where('owner_id', $request->user()->id)->findOrFail($id);
+        $override = $turf->overrides()->findOrFail($overrideId);
+        $override->delete();
+
+        return response()->json(['message' => 'Override removed successfully']);
     }
 }

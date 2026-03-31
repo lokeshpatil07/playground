@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class Turf extends Model
 {
@@ -38,6 +39,11 @@ class Turf extends Model
         return $this->hasMany(TurfSlot::class);
     }
 
+    public function overrides()
+    {
+        return $this->hasMany(TurfOverride::class);
+    }
+
     public function bookings()
     {
         return $this->hasMany(Booking::class);
@@ -56,5 +62,21 @@ class Turf extends Model
     public function getReviewCountAttribute()
     {
         return $this->reviews()->count();
+    }
+
+    /**
+     * Automatically prepend storage URL to image paths.
+     */
+    protected function images(): Attribute
+    {
+        return Attribute::make(
+            get: function ($value) {
+                $images = json_decode($value, true) ?: [];
+                return array_map(function($img) {
+                    if (str_starts_with($img, 'http')) return $img;
+                    return asset('storage/' . $img);
+                }, $images);
+            }
+        );
     }
 }

@@ -57,7 +57,27 @@ class BookingController extends Controller
             'date' => 'required|date|after_or_equal:today',
         ]);
 
-        $slot = \App\Models\TurfSlot::where('turf_id', $request->turf_id)->findOrFail($request->slot_id);
+        $date = $request->date;
+        $dayOfWeek = Carbon::parse($date)->dayOfWeek;
+
+        // Verify slot belongs to this turf and is valid for this day of week
+        $slot = \App\Models\TurfSlot::where('turf_id', $request->turf_id)
+            ->where(function($q) use ($dayOfWeek) {
+                $q->where('day_of_week', $dayOfWeek)
+                  ->orWhereNull('day_of_week');
+            })
+            ->findOrFail($request->slot_id);
+
+        // Check for overrides that block this slot
+        $override = \App\Models\TurfOverride::where('turf_id', $request->turf_id)
+            ->where('date', $date)
+            ->where('start_time', $slot->start_time)
+            ->where('end_time', $slot->end_time)
+            ->first();
+
+        if ($override && $override->is_blocked) {
+            return response()->json(['message' => 'This slot is closed on the selected date'], 422);
+        }
         
         // Simple conflict check for the specific date and slot
         $exists = Booking::where('turf_id', $request->turf_id)
@@ -69,7 +89,7 @@ class BookingController extends Controller
             return response()->json(['message' => 'This slot is already booked for the selected date'], 422);
         }
 
-        $totalPrice = $slot->price;
+        $totalPrice = $override->price ?? $slot->price;
 
         // Initialize Razorpay
         $api = $this->getRazorpayApi();

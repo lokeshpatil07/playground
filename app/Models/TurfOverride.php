@@ -4,15 +4,21 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class TurfSlot extends Model
+class TurfOverride extends Model
 {
     protected $fillable = [
         'turf_id',
-        'day_of_week',
+        'date',
         'start_time',
         'end_time',
         'price',
+        'is_blocked',
         'sport_type',
+    ];
+
+    protected $casts = [
+        'is_blocked' => 'boolean',
+        'date' => 'date',
     ];
 
     public function turf()
