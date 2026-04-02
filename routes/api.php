@@ -105,6 +105,11 @@ Route::middleware('auth:sanctum')->group(function () {
                 'index' => 'owner.bookings.index',
                 'show' => 'owner.bookings.show',
             ]);
+
+        // Overrides (New Smart Hybrid Logic)
+        Route::get('/grounds/{id}/overrides', [GroundController::class, 'getOverrides'])->name('grounds.overrides.index');
+        Route::post('/grounds/{id}/overrides', [GroundController::class, 'setOverride'])->name('grounds.overrides.store');
+        Route::delete('/grounds/{id}/overrides/{overrideId}', [GroundController::class, 'removeOverride'])->name('grounds.overrides.destroy');
     });
 
     // Upgrade to Owner
